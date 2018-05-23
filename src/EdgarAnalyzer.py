@@ -4,13 +4,14 @@ import os
 from datetime import datetime
 import re
 
-bool debug = True
+# verbose UI
+DEBUG = True
 
 # file holds single value from 1 to 86,400
-def get_inactivity_period:
+def get_inactivity_period():
     os.chdir("../input/") # don't know if this is needed or works...
     with open(inactivity_period.txt) as f:
-        if (debug) : print("Opened inactivity period file")
+        if (DEBUG) : print("Opened inactivity period file")
         return [int(x) for x in f]
     # it would be better practice to close the file, but this is more legible
 
