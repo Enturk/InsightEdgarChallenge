@@ -4,10 +4,12 @@ import os
 from datetime import datetime
 import sys
 import re
+from itertools import repeat
+
 # import csv # examine as alternative: https://www.e-education.psu.edu/geog485/node/141
 
 # verbose UI
-DEBUG = False
+DEBUG = True
 
 PATH = "/home/ubuntu/workspace/"
 
@@ -53,7 +55,7 @@ class Session:
         if DEBUG:
             print("  " + self.ip + " is born.")
 
-    def check(self, d, t):
+    def check(self, d, t, iterator):
         if DEBUG:
             print("  Session " + self.ip + " has been alive for ...")
         
@@ -65,7 +67,7 @@ class Session:
             print("    ... " + str(delta) + " seconds.")
         
         if delta >= TIMER and self.live:
-            kill_session(self, d, t)
+            kill_session(self, d, t, iterator)
             self.dying = True
             
         if DEBUG:
@@ -73,11 +75,11 @@ class Session:
 
         return self.live
 
-    def request(self, date, time):
+    def request(self, date, time, iterator):
         if DEBUG:
             print("  Time: " + time + " adding a request to session " + self.ip)
         
-        self.check(date,time)
+        self.check(date,time, iterator)
         
         if self.live == False:
             # old session timed out
@@ -85,38 +87,50 @@ class Session:
                 print("    Session "+ self.ip + "has gone stale and has been killed. Time to start a new session.")
             # make new session for ip
             newsesh = Session(self.ip, date, time)
-            sessions.append(newsesh)
+            SESSIONS[iterator].append(newsesh)
             return -1
         
         else:
             self.requests += 1
             self.lastReqDate = date
             self.lastReqTime = time
-            if DEBUG:
-                print("    Session " + self.ip + " has made " + str(self.requests) + " requests.")
+            SESSIONS[iterator].append(self)
+            if DEBUG: print("    Session " + self.ip + " has made " + str(self.requests) + " requests.")
             return self.requests
 
 
-# list of live Sessions - should use set to scale up better
-sessions = []
+# list of live Sessions - maybe use set to scale up better?
+# position in this list is indicative of last time
+SESSIONS = [[] for sec in repeat(None, int(TIMER))]
 
 def get_session_with_ip(ip):
-    return next((s for s in sessions if s.ip == ip), None)
+    for sec in SESSIONS:
+        for s in sec:
+            if s.ip == ip:
+                return s
+    return None
 
-def ip_in_sessions(ip):
-    for s in sessions:
+def ip_in_sessions(ip, iterator):
+    for s in SESSIONS[iterator]:
         if s.ip == ip:
             return s.ip
     return None
 
-# unused?
+def get_iteration_with_ip(ip):
+    for sec in SESSIONS:
+        for s in sec:
+            if s.ip == ip:
+                return sec
+    return None
+
 def is_alive(ip):
-    for s in sessions:
-        if s.ip == ip:
-            return s.live
+    for sec in SESSIONS:
+        for s in SESSIONS[sec]:
+            if s.ip == ip:
+                return s.live
     return False
 
-def kill_session(s, date, time):
+def kill_session(s, date, time, iterator):
     if s.live:
         if DEBUG:
             print("  Session is still alive, murdering it.")
@@ -131,23 +145,11 @@ def kill_session(s, date, time):
 
     
     # take out of list
-    try:
-        sessions.remove(s)
-    except ValueError:
-        print("    Couldn't remove session " + s.ip + " from list of sessions due to Value Error.")
-        print("    Trying to remove from list by position.")
-        position = ip_in_sessions(s.ip)
-        if position >= 0:
-            try:
-                sessions.remove(position)
-            except:
-                print("      Still couldn't remove session from list. You're going to run out of memory if this keeps up...")
-                return -1
-        else:
-            print("    Session " + s.ip + " is not in list.")
-    
-    if DEBUG:
-        print("    I think the session was removed from the list. Now to write the values to output...")
+    iteration = get_iteration_with_ip(s.ip)
+    if not (iteration == None):
+        SESSIONS[iteration].remove(s)
+        if DEBUG:
+            print("    I think the session was removed from SESSIONS iteration " + iteration +". Now to write the values to output...")
 
 # TODO process the EDGAR weblogs line by line
 def process_log():
@@ -159,6 +161,9 @@ def process_log():
         x = 'w+'
 
     count = 0
+    iterator = -1
+    time = -1
+    first_round = True
 
     os.chdir(PATH + "output/") # don't know if this is needed or works...
     try:
@@ -217,39 +222,54 @@ def process_log():
                 # IP address uniquely identifies a single user
                 ip = lineBuffer[ipPos]
                 date = lineBuffer[datePos]
+                if time != lineBuffer[timePos]:
+                    iterator += 1
                 time = lineBuffer[timePos]
                 
+                if DEBUG: print("Iterator is " + str(iterator))
+                
                 # need to distinguish first request from last request 
-                if ip_in_sessions(ip): # there's some redundant verification here that should be removed for scaling
-                    if DEBUG:
-                        print("  Session " + ip + " is in the live list.")
+                if get_session_with_ip(ip).live: # there's some redundant verification here that should be removed for scaling
+                    if DEBUG: print("  Session " + ip + " is in the live list.")
                     s = get_session_with_ip(ip)
-                    s.check(date, time)
+                    s.check(date, time, iterator)
                     
                     # IP address, duration of the session and number of documents accessed.
                     if s.dying:
-                        if DEBUG:
-                            print("    Session is stale.")
+                        if DEBUG: print("    Session is stale.")
                         o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
                         s.dying = False
                         
                         # the king is dead, long live the king
                         newsesh = Session(ip, date, time)
-                        sessions.append(newsesh)
+                        SESSIONS[iterator].append(newsesh)
                         
                     else:
-                        if DEBUG:
-                            print("    Session is still alive.")
-                        s.request(date, time)
+                        if DEBUG: print("    Session is still alive.")
+                        s.request(date, time, iterator)
                         
                 #create new session
                 else:
                     s = Session(ip, date, time)
-                    sessions.append(s)
+                    SESSIONS[iterator].append(s)
             
             # when scaling, use counter to learn when dealing longer files...
-            count = count + 1
-            if (count % 10000 == 0):
+            count += 1
+            if iterator >= TIMER:
+                if first_round:
+                    first_round = False
+                iterator = 0
+            else:
+                iterator += 1
+
+            # kill all the stale sessions
+            if not first_round:
+                for x in SESSIONS[iterator]:
+                    kill_session(x, date, time, iterator)
+                    SESSIONS[iterator].remove(x)
+                    x.dying = False
+
+            if (count % 200 == 0):
                 print("Processed " + str(count) + " lines of input.")
         fp.close()
 
@@ -257,19 +277,26 @@ def process_log():
         sys.exit("Couldn't open log file.")
 
 # when user session has ended (by inactivity_period or at end of log.csv)
-    if DEBUG:
-        print("Producing end-of-log-file output.")
-
-    for s in sessions:
-        o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
-        kill_session(s, date, time)
-        s.dying = False
-        if DEBUG:
-            print("  Final death for session " + s.ip)
+    if DEBUG: print("Producing end-of-log-file output.")
+    if iterator == 0:
+        last_round = TIMER
+    else:
+        last_round = iterator - 1
+    
+    while not (iterator == last_round):
+        for s in SESSIONS[iterator]:
+            o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
+            kill_session(s, date, time, iterator)
+            s.dying = False
+            if DEBUG: print("  Final death for session " + s.ip)
+            iterator += 1
+            if iterator == TIMER: 
+                iterator = 0
     if DEBUG:
         # extra lines for legibility
         o.write("\n")
     o.close()
+    print("Done at " + str(datetime.now()) + " after processing " + count + " requests. Please check out the output file.")
 
+print("EDGAR log analysis startin at " + str(datetime.now()))
 process_log()
-print("Done. Please check out the output file.")
