@@ -7,7 +7,7 @@ import re
 # import csv # examine as alternative: https://www.e-education.psu.edu/geog485/node/141
 
 # verbose UI
-DEBUG = True
+DEBUG = False
 
 PATH = "/home/ubuntu/workspace/"
 
@@ -204,18 +204,13 @@ def process_log():
                         if header == "date": 
                             datePos = i # date of the request (yyyy-mm-dd)
                             if DEBUG:
-                                print("  Date position in header is "+ str(ipPos))
+                                print("  Date position in header is "+ str(datePos))
                         if header == "time": 
                             timePos = i # time of the request (hh:mm:ss)
                             if DEBUG:
-                                print("  Time position in header is "+ str(ipPos))
+                                print("  Time position in header is "+ str(timePos))
                         i += 1
                         if DEBUG: print("    Counter i = " + str(i))
-#                            print("Exception in sorting out header buffer. Using testing header positions.")
-#                            ipPos = 0
-#                            datePos = 1
-#                            timePos = 2
-#                            break
                     first_line = False
                     continue
                 
