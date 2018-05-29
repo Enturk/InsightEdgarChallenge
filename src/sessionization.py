@@ -29,9 +29,8 @@ def get_inactivity_period():
             try:
                 x = int(x)
             except:
-                sys.exit("  File value can't be taken in ass an integer!")
+                sys.exit("  File value can't be taken in as an integer!")
             return x
-            # it would be better practice to close the file, but this is more legible
     except IOError:
         sys.exit("Couldn't open ineactivity_period file.")
 
@@ -56,6 +55,9 @@ class Session:
         if DEBUG: print("  Session for " + self.ip + " is born.")
 
     def request(self, ip, date, time, iterator):
+        if not self.live:
+            if DEBUG: print("  Stale session resurrected.")
+            self.dying = False
         self.requests += 1
         self.lastReqDate = date
         self.lastReqTime = time
@@ -84,6 +86,7 @@ second_line = True
 first_round = True
 time_change = False
 delta = 0
+count = 0
 
 if DEBUG:
     x = 'a+'
@@ -105,6 +108,8 @@ csv_file_name = "log.csv"
 
 try:
     with open(csv_file_name) as fp:
+        print("EDGAR log analysis startin at " + str(datetime.now()))
+
         if (DEBUG): 
             print("Opened log file. Here are the lines as I process them:")
             o.write("\n")
@@ -160,19 +165,21 @@ try:
                 for s in SESSIONS[iterator]:
                     SESSIONS[iterator].remove(s)
                     if timestamp_delta(s.lastReqDate, s.lastReqTime, date, time) >= TIMER:
-                        s.live = False
+            #            s.live = False                                
                         s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
                         o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
                         if DEBUG: print("  Session for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
                         s = None
                 #unknown if this helps
                 gc.collect()
+
                 time_change = False
 
             # case in which lotsa time passes between requests
             if delta>TIMER:
                 for sec in SESSIONS:
                     for s in sec:
+                        s.live = False
                         s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
                         if DEBUG: print("  Session for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
                         o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
@@ -180,9 +187,6 @@ try:
                 gc.collect()
             # reset trigger
             delta = 0
-
-            #if second_line: second_line = False
-            
             #check if session exists
             existing = get_session_with_ip(ip)
             
@@ -196,7 +200,20 @@ try:
             else:
                 if DEBUG: print("  Existing session for ip " + ip + " gets new request at " + str( iterator))
                 existing.request(ip, date, time, iterator)
-    
+
+            # for sec in SESSIONS:
+            #     for s in sec:
+            #         if not s.live:
+            #             s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
+            #             o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
+            #             if DEBUG: print("  Session for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
+            #             s = None
+            #     #unknown if this helps
+            #     gc.collect()
+
+        count += 1
+        if (count % 200 == 0): print("Processed " + str(count) + " requests.")
+        
     # at end of input file:
     if DEBUG: print("End of input process:")
     for sec in SESSIONS:
@@ -204,6 +221,8 @@ try:
             s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
             if DEBUG: print("  Session for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
             o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
+    
+    print("EDGAR log analysis done at " + str(datetime.now()) + ", please check output.")
 
 except IOError:
     sys.exit("Couldn't open log file.")
