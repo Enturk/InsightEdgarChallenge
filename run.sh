@@ -4,6 +4,6 @@ clear
 
 echo "Nazim Karaca's EDGAR Processor is starting."
 
-python ./src/EdgarAnalyzer.py
+python ./src/sessionization.py
 
 echo "Nazim Karaca's EDGAR Processor is done."
