@@ -167,7 +167,6 @@ def process_log():
 
     os.chdir(PATH + "output/") # don't know if this is needed or works...
     try:
-        # FIXME the path!
         o = open("sessionization.txt", x)
         if DEBUG:
             print("Opened output file,")
