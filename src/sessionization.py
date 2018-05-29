@@ -35,7 +35,7 @@ def get_inactivity_period():
     except IOError:
         sys.exit("Couldn't open ineactivity_period file.")
 
-TIMER = int(get_inactivity_period())
+TIMER = int(get_inactivity_period()) + 1
 if DEBUG: print("Timer limit is " + str(TIMER) + " seconds.")
 
 class Session:
@@ -43,7 +43,7 @@ class Session:
     def __init__(self, ip, date, time, iterator):
         if DEBUG: print("  Session for ip " + ip + " is being created.")
         self.ip = ip
-        self.duration = 0
+        self.duration = 1
         self.firstReqDate = date
         self.firstReqTime = time
         self.lastReqDate = date
@@ -134,7 +134,6 @@ try:
                         timePos = i # time of the request (hh:mm:ss)
                         if DEBUG: print("  Time position in header is "+ str(timePos))
                     i += 1
-                    if DEBUG: print("    Counter i = " + str(i))
                 first_line = False
                 continue
             
@@ -142,6 +141,7 @@ try:
             ip = lineBuffer[ipPos]
             if (time != lineBuffer[timePos]) or (date != lineBuffer[datePos]):
                 time_change = True
+                if DEBUG: print("  Iterator changed from " + str(iterator) + "...")
                 if second_line:
                     iterator += 1;
                 else:
@@ -150,18 +150,20 @@ try:
                 if iterator >= TIMER:
                     iterator = 0
                     if first_round: first_round = False
+                if DEBUG: print("                    ... to " + str(iterator))
             date = lineBuffer[datePos]
             time = lineBuffer[timePos]
             
             # after second line, monitor for time changes
-            if (time_change and not second_line):
+            if (time_change):
                 #start the session genocide
                 for s in SESSIONS[iterator]:
                     SESSIONS[iterator].remove(s)
                     if timestamp_delta(s.lastReqDate, s.lastReqTime, date, time) >= TIMER:
                         s.live = False
-                        s.duration = timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
+                        s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
                         o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
+                        if DEBUG: print("  Session for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
                         s = None
                 #unknown if this helps
                 gc.collect()
@@ -171,16 +173,15 @@ try:
             if delta>TIMER:
                 for sec in SESSIONS:
                     for s in sec:
-                        s.duration = timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
-                        if DEBUG: print("  Session " + s.ip + " lasted " + str(s.duration) + " seconds.")
+                        s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
+                        if DEBUG: print("  Session for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
                         o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
                         s = None
                 gc.collect()
-            
             # reset trigger
             delta = 0
 
-            if second_line: second_line = False
+            #if second_line: second_line = False
             
             #check if session exists
             existing = get_session_with_ip(ip)
@@ -200,8 +201,8 @@ try:
     if DEBUG: print("End of input process:")
     for sec in SESSIONS:
         for s in sec:
-            s.duration = timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
-            if DEBUG: print("  Session " + s.ip + " lasted " + str(s.duration) + " seconds.")
+            s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
+            if DEBUG: print("  Session for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
             o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
 
 except IOError:
