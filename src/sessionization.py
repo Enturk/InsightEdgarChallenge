@@ -57,11 +57,15 @@ class Session:
     def request(self, ip, date, time, iterator):
         if not self.live:
             if DEBUG: print("  Stale session resurrected.")
-            self.dying = False
         self.requests += 1
         self.lastReqDate = date
         self.lastReqTime = time
-        SESSIONS[iterator].append(self)
+        present = False
+        for s in SESSIONS[iterator]:
+            if s.ip == self.ip:
+                present = True
+        if not present:
+            SESSIONS[iterator].append(self)
         
         if DEBUG: print("  Session for " + self.ip + " got a new request.")
         
@@ -161,15 +165,15 @@ try:
             
             # after second line, monitor for time changes
             if (time_change):
-                #start the session genocide
+                #start the old session purge
                 for s in SESSIONS[iterator]:
                     SESSIONS[iterator].remove(s)
                     if timestamp_delta(s.lastReqDate, s.lastReqTime, date, time) >= TIMER:
             #            s.live = False                                
                         s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
                         o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
-                        if DEBUG: print("  Session for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
-                        s = None
+                        if DEBUG: print("  End of session for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
+                    s = None
                 #unknown if this helps
                 gc.collect()
 
@@ -181,7 +185,7 @@ try:
                     for s in sec:
                         s.live = False
                         s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
-                        if DEBUG: print("  Session for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
+                        if DEBUG: print("  End of session for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
                         o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
                         s = None
                 gc.collect()
@@ -219,7 +223,7 @@ try:
     for sec in SESSIONS:
         for s in sec:
             s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
-            if DEBUG: print("  Session for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
+            if DEBUG: print("  End of session for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
             o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
     
     print("EDGAR log analysis done at " + str(datetime.now()) + ", please check output.")
