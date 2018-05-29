@@ -221,8 +221,8 @@ try:
             #     #unknown if this helps
             #     gc.collect()
 
-        count += 1
-        if (count % 200 == 0): print("Processed " + str(count) + " requests.")
+            count += 1
+            if (count % 100000 == 0): print("Processed " + str(count) + " requests.")
         
     # at end of input file:
     if DEBUG: print("End of input process:")
@@ -232,7 +232,7 @@ try:
             if DEBUG: print("  End of session for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
             o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
     
-    print("EDGAR log analysis done at " + str(datetime.now()) + ", please check output.")
+    print("EDGAR log analysis done at " + str(datetime.now()) + ", after processing " + str(count) + " requests. Please check output.")
 
 except IOError:
     sys.exit("Couldn't open log file.")
