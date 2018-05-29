@@ -6,7 +6,7 @@ from itertools import repeat
 import gc
 
 # verbose feedback
-DEBUG = True
+DEBUG = False
 
 PATH = "/home/ubuntu/workspace/"
 
@@ -61,16 +61,20 @@ class Session:
         self.lastReqDate = date
         self.lastReqTime = time
         present = False
-        for s in SESSIONS[iterator]:
-            if s.ip == self.ip:
-                present = True
+        for sec in SESSIONS:
+            for s in sec:
+                if s.ip == self.ip:
+                    if sec == SESSIONS[iterator]:
+                        present = True
+                    else:
+                        sec.remove(s)
         if not present:
             SESSIONS[iterator].append(self)
         
         if DEBUG: print("  Session for " + self.ip + " got a new request.")
         
-# list of live Sessions - maybe use set to scale up better?
-# position in this list is indicative of last time
+# list of live Sessions - maybe a set would scale up better?
+# position in this list is indicative of last request
 SESSIONS = [[] for sec in repeat(None, int(TIMER))]
 
 def get_session_with_ip(ip):
@@ -165,16 +169,18 @@ try:
             
             # after second line, monitor for time changes
             if (time_change):
-                #start the old session purge
+                # old session purge
                 for s in SESSIONS[iterator]:
                     SESSIONS[iterator].remove(s)
-                    if timestamp_delta(s.lastReqDate, s.lastReqTime, date, time) >= TIMER:
+                    staleness = timestamp_delta(s.lastReqDate, s.lastReqTime, date, time)
+                    if DEBUG: print("  Session for ip " + s.ip + " hasn't made a request in " + str(staleness) + " seconds.")
+                    if staleness >= TIMER:
             #            s.live = False                                
                         s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
                         o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
-                        if DEBUG: print("  End of session for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
+                        if DEBUG: print("    End of session for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
                     s = None
-                #unknown if this helps
+                #cunknown if this helps
                 gc.collect()
 
                 time_change = False
