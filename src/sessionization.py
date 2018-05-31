@@ -226,11 +226,22 @@ try:
         
     # at end of input file:
     if DEBUG: print("End of input process:")
+    
+    sorted_sessions = []
+
     for sec in SESSIONS:
         for s in sec:
             s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
-            if DEBUG: print("  End of session for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
-            o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
+            s.start_time = (datetime.strptime(s.firstReqDate + " " + s.firstReqTime, '%Y-%m-%d %H:%M:%S') - datetime(1970,1,1)).total_seconds()
+            sorted_sessions.append(s)
+            if DEBUG: print("  Sorting session " + s.ip + " with time " + str(s.start_time))
+            sorted_sessions.append(s)
+
+    sorted_sessions = sorted(sorted_sessions, key = lambda s: s.start_time)
+
+    for s in sorted_sessions:
+        if DEBUG: print("  End of session for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
+        o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
     
     print("EDGAR log analysis done at " + str(datetime.now()) + ", after processing " + str(count) + " requests. Please check output.")
 
