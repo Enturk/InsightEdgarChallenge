@@ -8,7 +8,8 @@ import gc
 # verbose feedback
 DEBUG = False
 
-PATH = "/home/ubuntu/workspace/"
+# get main directory path
+PATH = os.path.dirname(os.path.realpath(__file__))[:-3]
 
 # yyyy-mm-dd and hh:mm:ss
 date_format = "%Y-%m-%d %H:%M:%S"
@@ -20,7 +21,7 @@ def timestamp_delta(olddate, oldtime, newdate, newtime):
 
 # file holds single value from 1 to 86,400
 def get_inactivity_period():
-    os.chdir(PATH + "input/") # don't know if this is needed or works...
+    os.chdir(PATH + "input/") 
     try:
         with open("inactivity_period.txt", "r") as f:
             if DEBUG: print("Opened inactivity period file")
@@ -39,7 +40,7 @@ if DEBUG: print("Timer limit is " + str(TIMER) + " seconds.")
 
 class Session:
     
-    def __init__(self, ip, date, time, iterator):
+    def __init__(self, ip, date, time, iterator, count):
         if DEBUG: print("  Session for ip " + ip + " is being created.")
         self.ip = ip
         self.duration = 1
@@ -50,6 +51,7 @@ class Session:
         self.requests = 1
         self.live = True
         self.dying = False
+        self.count = count
         SESSIONS[iterator].append(self)
 
         if DEBUG: print("  Session for " + self.ip + " is born.")
@@ -110,10 +112,11 @@ try:
 except:
     sys.exit("  Couldn't open output file.")
 
-# open log file
+# now to start down the road before us
 os.chdir(PATH + "input/") 
 csv_file_name = "log.csv"
 
+# open log file
 try:
     with open(csv_file_name) as fp:
         print("EDGAR log analysis startin at " + str(datetime.now()))
@@ -191,7 +194,7 @@ try:
                     for s in sec:
                         s.live = False
                         s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
-                        if DEBUG: print("  End of session for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
+                        if DEBUG: print("  Output for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
                         o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
                         s = None
                 gc.collect()
@@ -204,7 +207,7 @@ try:
             #if none, new session
             if existing == None:
                 if DEBUG: print("  New session for ip " + ip)
-                s = Session(ip, date, time, iterator)
+                s = Session(ip, date, time, iterator, count)
             
             #otherwise, update session
             else:
@@ -216,7 +219,7 @@ try:
             #         if not s.live:
             #             s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
             #             o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
-            #             if DEBUG: print("  Session for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
+            #             if DEBUG: print("  Output for ip " + s.ip + " made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
             #             s = None
             #     #unknown if this helps
             #     gc.collect()
@@ -226,20 +229,20 @@ try:
         
     # at end of input file:
     if DEBUG: print("End of input process:")
-    
+
     sorted_sessions = []
 
     for sec in SESSIONS:
         for s in sec:
             s.duration = 1 + timestamp_delta(s.firstReqDate, s.firstReqTime, s.lastReqDate, s.lastReqTime)
-            s.start_time = (datetime.strptime(s.firstReqDate + " " + s.firstReqTime, '%Y-%m-%d %H:%M:%S') - datetime(1970,1,1)).total_seconds()
+            s.start_time = (datetime.strptime(s.firstReqDate + " " + s.firstReqTime, '%Y-%m-%d %H:%M:%S') - datetime(2003,1,1)).total_seconds()
             sorted_sessions.append(s)
-            if DEBUG: print("  Sorting session " + s.ip + " with time " + str(s.start_time))
+            if DEBUG: print("  Sorting session " + s.ip + " with time " + str(s.start_time) + " and count " + str(s.count))
 
-    sorted_sessions = sorted(sorted_sessions, key = lambda s: s.start_time)
+    sorted_sessions = sorted(sorted_sessions, key = lambda s: (s.start_time, s.count))
 
     for s in sorted_sessions:
-        if DEBUG: print("  End of session for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
+        if DEBUG: print("  Output for ip " + s.ip + ". It made " + str(s.requests) + " request(s) and lasted " + str(s.duration) + " second(s).")
         o.write(s.ip + "," + s.firstReqDate + " " + s.firstReqTime + "," +  s.lastReqDate + " " + s.lastReqTime + "," + str(s.duration) + "," + str(s.requests) + "\n")
     
     print("EDGAR log analysis done at " + str(datetime.now()) + ", after processing " + str(count) + " requests. Please check output.")
