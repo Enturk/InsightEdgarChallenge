@@ -235,7 +235,6 @@ try:
             s.start_time = (datetime.strptime(s.firstReqDate + " " + s.firstReqTime, '%Y-%m-%d %H:%M:%S') - datetime(1970,1,1)).total_seconds()
             sorted_sessions.append(s)
             if DEBUG: print("  Sorting session " + s.ip + " with time " + str(s.start_time))
-            sorted_sessions.append(s)
 
     sorted_sessions = sorted(sorted_sessions, key = lambda s: s.start_time)
 
